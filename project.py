@@ -240,13 +240,6 @@ class ImageProcessingApp:
             else:  # Image is already grayscale (1 channel)
                 self.grey_img = self.original_img
     
-    def calcthreshold(self):
-        self.modified_img=self.grey_img
-        threshold = self.find_best_threshold()
-        return threshold
-
-           
-    
     def threshold_image(self,th):
 
         thresholded_im = np.zeros(self.modified_img.shape)
@@ -266,7 +259,7 @@ class ImageProcessingApp:
         if weight1 == 0 or weight0 == 0:
             return np.inf
         
-        val_pixels1 = self.modified_img[thresholded_im == 1]
+        val_pixels1 = self.modified_img[thresholded_im == 255]
         val_pixels0 = self.modified_img[thresholded_im == 0]
         
         var0 = np.var(val_pixels0) if len(val_pixels0) > 0 else 0
@@ -282,6 +275,11 @@ class ImageProcessingApp:
         
         return best_threshold
 
+    def calcthreshold(self):
+        self.modified_img=self.grey_img
+        threshold = self.find_best_threshold()
+        return threshold
+    
     def apply_threshold(self):
         threshold=self.calcthreshold()
         self.modified_img = np.zeros_like(self.grey_img, dtype=np.uint8)
@@ -292,7 +290,7 @@ class ImageProcessingApp:
 
     def apply_simple_halftone(self):
         width, height = self.grey_img.shape
-        block_size=4
+        block_size=5
         self.modified_img = np.zeros((width, height))
 
         for x in range(0, width, block_size):
@@ -720,7 +718,6 @@ class ImageProcessingApp:
     def calc_peaks(self,hist,th):
         backgroud_peak=np.argmax(hist[:th])
         object_peak=th + np.argmax(hist[th:])
-    
         return backgroud_peak,object_peak
     
     def manual_technique(self):
@@ -734,10 +731,11 @@ class ImageProcessingApp:
         smoothed_hist =self.smooth_histogram(hist)
         peak1,peak2=self.calc_peaks(smoothed_hist ,threshold)
         low,high = self.peaks_high_low(smoothed_hist ,peak1,peak2)
-        
+        if low > high:
+            low,high=high,low
         self.modified_img= np.zeros_like(self.grey_img)
         self.modified_img[ (self.grey_img>=low) & (self.grey_img<=high) ]= 255
-    
+   
     def valley_technique(self):
         threshold=self.calcthreshold()
         hist=self.custom_histogram()
@@ -745,13 +743,14 @@ class ImageProcessingApp:
         peak1,peak2=self.calc_peaks(smoothed_hist ,threshold)
         valley_point = self.valley_point(smoothed_hist, peak1, peak2)
         low,high = valley_point,peak2
+        if low > high:
+            low,high=high,low
         self.modified_img= np.zeros_like(self.grey_img)
         self.modified_img[ (self.grey_img>=low) & (self.grey_img<=high) ]= 255
     
     def valley_point(self,histogram, peak1, peak2):
         if peak1>peak2:
             peak1,peak2 = peak2,peak1
-            
         vall_point= peak1 + np.argmin(histogram[peak1:peak2])
         return vall_point
     
@@ -763,21 +762,16 @@ class ImageProcessingApp:
         #First pass 
         peak1,peak2=self.calc_peaks(smoothed_hist ,threshold)
         low,high = self.peaks_high_low(smoothed_hist ,peak1,peak2)
-        print(low,high)
         #Second pass 
         back,obj=self.threshold_and_means(low,high)
         low,high = self.peaks_high_low(smoothed_hist ,back,obj)
         low=low.astype(np.uint8)
         high=high.astype(np.uint8)
-        print(low,high)
         
-        if low>high:
+        if low > high:
             low,high=high,low
         self.modified_img= np.zeros_like(self.grey_img)
         self.modified_img[ (self.grey_img>=low) & (self.grey_img<=high) ]= 255
-    
-        
-        
         
     def threshold_and_means(self,low,high):
         rows, cols = self.grey_img.shape
