@@ -122,7 +122,6 @@ class ImageProcessingApp:
             self.algorithm_var.set('')
             self.operation_var.set('')
             self.algorithm_combobox["values"] =""
-            
         
     def display(self,custom_hist,hist_type):
         
@@ -197,7 +196,6 @@ class ImageProcessingApp:
             list(self.operations.values())[3][1]: self.prewitt_simple_edge_detection,
             list(self.operations.values())[3][2]: self.kirsch_edge_detection,
             list(self.operations.values())[4][0]: self.homogeneity_advanced_edge_detection,
-            # list(self.operations.values())[4][1]: self.difference_advanced_edge_detection,
             list(self.operations.values())[4][1]: self.differnce_op,
             list(self.operations.values())[4][2]: self.Difference_of_Gaussians,
             list(self.operations.values())[4][3]: self.contrast_based_edge_detection,
@@ -252,15 +250,14 @@ class ImageProcessingApp:
         
         nb_pixels = self.modified_img.size
         nb_pixels1 = np.count_nonzero(thresholded_im)
-        
         weight1 = nb_pixels1 / nb_pixels
         weight0 = 1 - weight1
         
         if weight1 == 0 or weight0 == 0:
             return np.inf
         
-        val_pixels1 = self.modified_img[thresholded_im == 255]
         val_pixels0 = self.modified_img[thresholded_im == 0]
+        val_pixels1 = self.modified_img[thresholded_im == 255]
         
         var0 = np.var(val_pixels0) if len(val_pixels0) > 0 else 0
         var1 = np.var(val_pixels1) if len(val_pixels1) > 0 else 0
@@ -268,7 +265,6 @@ class ImageProcessingApp:
         return weight0 * var0+ weight1 * var1
 
     def find_best_threshold(self):
-
         threshold_range = range(np.max(self.modified_img)+1)
         criterias = [self.compute_otsu_criteria(th) for th in threshold_range]
         best_threshold = threshold_range[np.argmin(criterias)]
@@ -279,6 +275,18 @@ class ImageProcessingApp:
         self.modified_img=self.grey_img
         threshold = self.find_best_threshold()
         return threshold
+    
+    # def calcthreshold(self):
+    #     self.modified_img=self.grey_img
+    #     total_pixels = self.modified_img.shape[0] * self.modified_img.shape[1] # Total number of pixels
+    #     total_intensity = 0
+    
+    #     for row in self.modified_img:
+    #       for pixel in row:
+    #           total_intensity += pixel
+    
+    #     threshold = total_intensity / total_pixels
+    #     return threshold.astype(np.uint8)
     
     def apply_threshold(self):
         threshold=self.calcthreshold()
@@ -494,28 +502,6 @@ class ImageProcessingApp:
                 differnce = max(Diff)
                 # Apply threshold and ensure the result fits in uint8
                 self.modified_img[i, j] = 255 if differnce >= threshold else 0
-    
-    def difference_advanced_edge_detection(self):
-        self.grey_img = cv2.GaussianBlur(self.grey_img, (9, 9), 0)
-        # Apply the first-order difference operator in the horizontal direction
-        first_order_diff_horizontal = self.grey_img.copy()
-        for i in range(self.grey_img.shape[0]):
-            for j in range(self.grey_img.shape[1] - 1):
-                first_order_diff_horizontal[i, j] = abs(self.grey_img[i, j+1] - self.grey_img[i, j])
-        
-        # Apply the first-order difference operator in the vertical direction
-        first_order_diff_vertical = self.grey_img.copy()
-        for i in range(self.grey_img.shape[0] - 1):
-            for j in range(self.grey_img.shape[1]):
-                first_order_diff_vertical[i, j] = abs(first_order_diff_vertical[i+1, j] - first_order_diff_vertical[i, j])
-        # self.modified_img=first_order_diff_horizontal
-        # self.modified_img=first_order_diff_vertical
-        # Apply the second-order difference operator
-        second_order_diff = first_order_diff_vertical.copy()
-        for i in range(first_order_diff_vertical.shape[0] - 2):
-            for j in range(first_order_diff_vertical.shape[1] - 2):
-                second_order_diff[i, j] = abs(second_order_diff[i+2, j] - 2 * second_order_diff[i+1, j] + second_order_diff[i, j])
-        self.modified_img=second_order_diff
         
     def contrast_based_edge_detection(self):
         mask = np.array([
@@ -534,7 +520,6 @@ class ImageProcessingApp:
         smoothed_image_array = cv2.normalize(smoothed_image_array, None, 0, 255, cv2.NORM_MINMAX)
      
         self.modified_img = smoothed_image_array.astype(np.uint8)
-        # self.modified_img = quick_edge
             
         
         
@@ -565,6 +550,7 @@ class ImageProcessingApp:
         filtered_7x7 = cv2.filter2D(self.grey_img, ddepth=-1, kernel=mask_7x7, borderType=cv2.BORDER_CONSTANT)
         filtered_9x9 = cv2.filter2D(self.grey_img, ddepth=-1, kernel=mask_9x9, borderType=cv2.BORDER_CONSTANT)
         self.modified_img=filtered_7x7 -filtered_9x9
+        # self.modified_img=filtered_7x7 
     
     def variance_advanced_edge_detection(self):
         
@@ -663,11 +649,11 @@ class ImageProcessingApp:
         self.modified_img = result
         
     def subtract_image_and_copy(self):
-        second_img_file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.jpg *.jpeg *.png *.bmp")])
+        second_img_file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.jpg *.jpeg *.png *.bmp;*.webp")])
         while(not second_img_file_path):
             
             messagebox.showwarning("No Image selected","Image must be uploaded ")
-            second_img_file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.jpg *.jpeg *.png *.bmp")])
+            second_img_file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.jpg *.jpeg *.png *.bmp;*.webp")])
     
         second_img = cv2.imread(second_img_file_path, cv2.IMREAD_GRAYSCALE)
         if second_img is None:
@@ -723,7 +709,7 @@ class ImageProcessingApp:
     def manual_technique(self):
         
         self.modified_img= np.zeros_like(self.grey_img)
-        self.modified_img[ (self.grey_img>=125) & (self.grey_img<=255) ]=255
+        self.modified_img[ (self.grey_img>=200) & (self.grey_img<=242) ]=255
     
     def histogram_peak_technique(self):
         threshold=self.calcthreshold()
@@ -762,6 +748,7 @@ class ImageProcessingApp:
         #First pass 
         peak1,peak2=self.calc_peaks(smoothed_hist ,threshold)
         low,high = self.peaks_high_low(smoothed_hist ,peak1,peak2)
+        
         #Second pass 
         back,obj=self.threshold_and_means(low,high)
         low,high = self.peaks_high_low(smoothed_hist ,back,obj)
